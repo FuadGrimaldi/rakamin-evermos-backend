@@ -24,8 +24,12 @@ func BuildPrivateRoutes(db *gorm.DB, cfg *config.Config) []*router.Route {
 	tokoService := service.NewTokoService(cfg, tokoRepository)
 	tokoHandler := handler.NewTokoHandler(tokoService)
 
+	categoryRepository := repository.NewCategoryRepository(db)
+	categoryService := service.NewCategoryService(categoryRepository)
+	categoryHandler := handler.NewCategoryHandler(categoryService)
 
-	return router.PrivateRoutes(userHandler, alamatHandler, tokoHandler)
+
+	return router.PrivateRoutes(userHandler, alamatHandler, tokoHandler, categoryHandler)
 }
 
 func BuildPublicRoutes(db *gorm.DB, cfg *config.Config) []*router.Route {
