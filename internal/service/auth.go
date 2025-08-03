@@ -16,16 +16,17 @@ import (
 
 type AuthService interface {
 	Login(ctx context.Context, request dto.LoginRequest) (*dto.LoginResponse, error)
-	Register(ctx context.Context, request dto.RegisterRequest) (string, error)
+	Register(ctx context.Context, request dto.RegisterRequest) (*dto.RegisterResponse, error)
 }
 
 type authService struct {
 	cfg        *config.Config
 	repository repository.UserRepository
+	tokoRepo     repository.TokoRepository 
 }
 
-func NewAuthService(cfg *config.Config, repository repository.UserRepository) AuthService {
-	return &authService{cfg, repository}
+func NewAuthService(cfg *config.Config, repository repository.UserRepository, tokoRepo repository.TokoRepository) AuthService {
+	return &authService{cfg, repository, tokoRepo}
 }
 
 func (u *authService) Login(ctx context.Context, request dto.LoginRequest) (*dto.LoginResponse, error) {
@@ -79,15 +80,25 @@ func (u *authService) Login(ctx context.Context, request dto.LoginRequest) (*dto
 	return response, nil
 }
 
-func (u *authService) Register(ctx context.Context, request dto.RegisterRequest) (string, error) {
+func (u *authService) Register(ctx context.Context, request dto.RegisterRequest) (*dto.RegisterResponse, error) {
 	tanggalLahir, err := time.Parse("2006-01-02", request.TanggalLahir)
+	if err != nil {
+		return nil, err
+	}
+
 	role := "user"
+
+	// Hash Password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
 
 	// Lengkapi data user dari request
 	user := &entity.User{
 		Nama:         request.Nama,
 		Email:        request.Email,
-		Password:     request.Password,
+		Password:     string(hashedPassword),
 		NoTelp:       request.NoTelp,
 		Role:         role,
 		TanggalLahir: tanggalLahir,
@@ -98,22 +109,34 @@ func (u *authService) Register(ctx context.Context, request dto.RegisterRequest)
 		IdKota:       request.IdKota,
 	}
 
-	
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	// Simpan ke database
+	err = u.repository.Create(ctx, user)
 	if err != nil {
-		return "", err
-	}
-	user.Password = string(hashedPassword)
-
-	if err := u.repository.Create(ctx, user); err != nil {
-		return "", err
+		return nil, err
 	}
 
+	toko := &entity.Toko{
+		IdUser:   user.ID,
+	}
+	err = u.tokoRepo.Create(ctx, toko)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate Token
 	token, err := common.GenerateAccessToken(ctx, user)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return token, nil
+	// Build Response
+	response := &dto.RegisterResponse{
+		ID:     user.ID,
+		Nama:   user.Nama,
+		NoTelp: user.NoTelp,
+		Email:  user.Email,
+		Token:  token,
+	}
+
+	return response, nil
 }
