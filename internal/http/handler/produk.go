@@ -58,15 +58,37 @@ func (h *ProdukHandler) GetProdukByID(c *fiber.Ctx) error {
 }
 
 func (h *ProdukHandler) CreateProduk(c *fiber.Ctx) error {
+	// Parse form-data fields
 	var req dto.CreateProdukRequest
-	if err := c.BodyParser(&req); err != nil {
-		return util.JSONResponse(c, http.StatusBadRequest, "Invalid request body", err.Error(), nil)
+	req.NamaProduk = c.FormValue("nama_produk")
+	req.Slug = c.FormValue("slug")
+	req.HargaReseller, _ = strconv.Atoi(c.FormValue("harga_reseller"))
+	req.HargaKonsumen, _ = strconv.Atoi(c.FormValue("harga_konsumen"))
+	req.Stok, _ = strconv.Atoi(c.FormValue("stok"))
+	req.Deskripsi = c.FormValue("deskripsi")
+	req.IdToko, _ = strconv.ParseInt(c.FormValue("id_toko"), 10, 64)
+	req.IdCategory, _ = strconv.ParseInt(c.FormValue("id_category"), 10, 64)
+
+	// --- Ini bagian penting: Ambil Multiple Files ---
+	form, err := c.MultipartForm()
+	if err != nil {
+		return util.JSONResponse(c, fiber.StatusBadRequest, "Failed to parse multipart form", err.Error(), nil)
 	}
-	if err := h.produkService.CreateProduk(c.Context(), &req); err != nil {
-		return util.JSONResponse(c, http.StatusInternalServerError, "Failed to create product", err.Error(), nil)
+
+	fileHeaders := form.File["photos"]
+	if len(fileHeaders) == 0 {
+		return util.JSONResponse(c, fiber.StatusBadRequest, "No photos uploaded", nil, nil)
 	}
-	return util.JSONResponse(c, http.StatusCreated, "Product created successfully", nil, nil)
+
+	// Call Service with fileHeaders
+	err = h.produkService.CreateProduk(c.Context(), &req, fileHeaders)
+	if err != nil {
+		return util.JSONResponse(c, fiber.StatusInternalServerError, "Failed to create product", err.Error(), nil)
+	}
+
+	return util.JSONResponse(c, fiber.StatusOK, "Product created successfully", nil, nil)
 }
+
 
 func (h *ProdukHandler) UpdateProduk(c *fiber.Ctx) error {
 	idParam := c.Params("id")

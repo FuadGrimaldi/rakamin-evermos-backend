@@ -4,24 +4,27 @@ import (
 	"Evermos-Virtual-Intern/internal/dto"
 	"Evermos-Virtual-Intern/internal/entity"
 	"Evermos-Virtual-Intern/internal/repository"
+	"Evermos-Virtual-Intern/internal/util"
 	"context"
 	"errors"
+	"mime/multipart"
 )
 
 type ProdukService interface {
 	GetAllProduk(ctx context.Context, filter dto.ProdukFilterParams) (*dto.ProdukListPaginated, error)
 	GetProdukByID(ctx context.Context, id int64) (*dto.ProdukResponse, error)
-	CreateProduk(ctx context.Context, req *dto.CreateProdukRequest) error
+	CreateProduk(ctx context.Context, req *dto.CreateProdukRequest,  files []*multipart.FileHeader) error
 	UpdateProduk(ctx context.Context, id int64, req *dto.UpdateProdukRequest) error
 	DeleteProduk(ctx context.Context, id int64) error
 }
 
 type produkService struct {
 	produkRepo repository.ProdukRepository
+	fotoProdukRepo   repository.FotoProdukRepository
 }
 
-func NewProdukService(produkRepo repository.ProdukRepository) ProdukService {
-	return &produkService{produkRepo}
+func NewProdukService(produkRepo repository.ProdukRepository, fotoProdukRepo repository.FotoProdukRepository) ProdukService {
+	return &produkService{produkRepo, fotoProdukRepo}
 }
 
 func (s *produkService) GetAllProduk(ctx context.Context, filter dto.ProdukFilterParams) (*dto.ProdukListPaginated, error) {
@@ -98,7 +101,7 @@ func (s *produkService) GetProdukByID(ctx context.Context, id int64) (*dto.Produ
 	}, nil
 }
 
-func (s *produkService) CreateProduk(ctx context.Context, req *dto.CreateProdukRequest) error {
+func (s *produkService) CreateProduk(ctx context.Context, req *dto.CreateProdukRequest,  files []*multipart.FileHeader) error {
 	produk := &entity.Produk{
 		NamaProduk:    req.NamaProduk,
 		Slug:          req.Slug,
@@ -109,7 +112,36 @@ func (s *produkService) CreateProduk(ctx context.Context, req *dto.CreateProdukR
 		IdToko:        req.IdToko,
 		IdCategory:    req.IdCategory,
 	}
-	return s.produkRepo.Create(ctx, produk)
+	if err := s.produkRepo.Create(ctx, produk); err != nil {
+		return err
+	}
+
+	// Step 2: Upload Photos to Cloudinary & Save to foto_produk
+	var fotoProduks []entity.FotoProduk
+	for _, fileHeader := range files {
+		file, err := fileHeader.Open()
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		uploadedURL, err := util.UploadToCloudinary(ctx, file, fileHeader.Filename)
+		if err != nil {
+			return err
+		}
+
+		fotoProduks = append(fotoProduks, entity.FotoProduk{
+			IdProduk: produk.ID,
+			Url:      uploadedURL,
+		})
+	}
+	// Step 3: Bulk Insert FotoProduk
+	if err := s.fotoProdukRepo.CreateBulk(ctx, fotoProduks); err != nil {
+		return err
+	}
+
+
+	return nil
 }
 
 func (s *produkService) UpdateProduk(ctx context.Context, id int64, req *dto.UpdateProdukRequest) error {
