@@ -34,7 +34,7 @@ func PublicRoutes(AuthHandler *handler.AuthHandler, UserHandler *handler.UserHan
 }
 
 
-func PrivateRoutes(UserHandler *handler.UserHandler, AlamatHandler *handler.AlamatHandler, TokoHandler *handler.TokoHandler, CategoryHandler *handler.CategoryHandler, ProdukHandler *handler.ProdukHandler) []*Route {
+func PrivateRoutes(UserHandler *handler.UserHandler, AlamatHandler *handler.AlamatHandler, TokoHandler *handler.TokoHandler, CategoryHandler *handler.CategoryHandler, ProdukHandler *handler.ProdukHandler, TrxHandler *handler.TrxHandler) []*Route {
 	return []*Route{
 		{Method: http.MethodGet, Path: "/api/v1/user", Handler: UserHandler.GetProfile, Roles: allRoles},
 		{Method: http.MethodPut, Path: "/api/v1/user", Handler: UserHandler.UpdateProfile, Roles: allRoles},
@@ -68,7 +68,11 @@ func PrivateRoutes(UserHandler *handler.UserHandler, AlamatHandler *handler.Alam
 		{Method: http.MethodPost, Path: "/api/v1/product", Handler: ProdukHandler.CreateProduk, Roles: onlyUser},
 		{Method: http.MethodPut, Path: "/api/v1/product/:id", Handler: ProdukHandler.UpdateProduk, Roles: onlyUser},
 		{Method: http.MethodDelete, Path: "/api/v1/product/:id", Handler: ProdukHandler.DeleteProduk, Roles: onlyUser},
-		
+
+		// Transaction Routes
+		{Method: http.MethodGet, Path: "/api/v1/trx", Handler: TrxHandler.GetAllTrx, Roles: allRoles},
+		{Method: http.MethodGet, Path: "/api/v1/trx/:id", Handler: TrxHandler.GetTrxByID, Roles: allRoles},
+		{Method: http.MethodPost, Path: "/api/v1/trx", Handler: TrxHandler.CreateTrx, Roles: onlyUser},
 
 	}
 }
