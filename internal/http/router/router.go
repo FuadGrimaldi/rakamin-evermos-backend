@@ -24,12 +24,19 @@ type Route struct {
 	Handler fiber.Handler
 	Roles   []string
 }
-func PublicRoutes(AuthHandler *handler.AuthHandler, UserHandler *handler.UserHandler) []*Route {
+func PublicRoutes(AuthHandler *handler.AuthHandler, UserHandler *handler.UserHandler, ProxyHandler *handler.ProxyHandler) []*Route {
 	return []*Route{
 		{Method: http.MethodPost, Path: "/api/v1/auth/login", Handler: AuthHandler.Login, Roles: allRoles},
 		{Method: http.MethodPost, Path: "/api/v1/auth/register", Handler: AuthHandler.Register, Roles: allRoles},
 		{Method: http.MethodPost, Path: "/user/generate-password", Handler: UserHandler.GeneratePassword, Roles: onlyUser},
 		{Method: http.MethodPut, Path: "/api/v1/user/:id", Handler: UserHandler.UpdateUser, Roles: onlyAdmin},
+
+
+				// Proxy Routes
+		{Method: http.MethodGet, Path: "/api/v1/provcity/listprovincies", Handler: ProxyHandler.GetAllProvinces, Roles: allRoles},
+		{Method: http.MethodGet, Path: "/api/v1/provcity/listcities/:prov_id", Handler: ProxyHandler.GetCitiesByProvinceID, Roles: allRoles},
+		{Method: http.MethodGet, Path: "/api/v1/provcity/detailprovince/:prov_id", Handler: ProxyHandler.GetProvinceByID, Roles: allRoles},
+		{Method: http.MethodGet, Path: "/api/v1/provcity/detailcity/:prov_id/:city_id", Handler: ProxyHandler.GetCityByID, Roles: allRoles},
 	}
 }
 
@@ -73,6 +80,9 @@ func PrivateRoutes(UserHandler *handler.UserHandler, AlamatHandler *handler.Alam
 		{Method: http.MethodGet, Path: "/api/v1/trx", Handler: TrxHandler.GetAllTrx, Roles: allRoles},
 		{Method: http.MethodGet, Path: "/api/v1/trx/:id", Handler: TrxHandler.GetTrxByID, Roles: allRoles},
 		{Method: http.MethodPost, Path: "/api/v1/trx", Handler: TrxHandler.CreateTrx, Roles: onlyUser},
+
+
+
 
 	}
 }
